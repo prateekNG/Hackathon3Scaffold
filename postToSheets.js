@@ -1,58 +1,54 @@
-const spinner = document.getElementById('spinner');
+const deployment = 'https://script.google.com/macros/s/AKfycbwXRao6DvvaCs1YONV1PYyCsnsQi_2eI6gA40KqnGM4rlc_VZkasTIEtjOZh29GSb06hQ/exec';
 
-function showSpinner() {
-    spinner.style.display = 'block';
-}
-
-function hideSpinner() {
-    spinner.style.display = 'none';
-}
-
-const url = 'https://script.google.com/macros/s/AKfycbyZVRTkINi9HIiGkVRvVPEM7kY3A8lc1xS-Zw1GI_iZwoC1IA3f5RO0S3lPFAtQByaZFg/exec';
-
-async function postDataToSheet(data) {
-    showSpinner();
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            }
-        });
-        console.log("success:", response);
-    } catch (err) {
-        console.log("Error:" + err);
-    } finally {
-        hideSpinner();
+async function sendRequest(email, question) {
+    let url = deployment;
+    if (email && question) {
+        url += '?email=' + encodeURIComponent(email) + '&question=' + encodeURIComponent(question);
     }
-}
-
-// Function to get data from the google sheet and display it in on the html page
-async function getDataFromSheet() {
     const response = await fetch(url);
     const data = await response.json();
     console.log(data);
-    const table = document.getElementById('dataTable');
-    table.innerHTML = '';
-    data.forEach(row => {
-        console.log(row);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row['email']}</td><td>${row['question']}</td>`;
-        table.appendChild(tr);
-    });
+    alert(`message: ${data.message}\nstatus: ${data.status}`);
+    return data;
 }
 
-document.getElementById('dataForm').addEventListener('submit', function(event) {
-    event.preventDefault();
+async function submitData() {
     const email = document.getElementById('email').value;
     const question = document.getElementById('question').value;
-    const data = { email, question };
-    postDataToSheet(data);
+    await sendRequest(email, question);
 }
-);
 
-document.getElementById('getData').addEventListener('click', function() {
-    getDataFromSheet();
+async function fetchData() {
+    const response = await sendRequest();
+    const data = response.data;
+    const dataTable = document.getElementById('dataTable');
+    dataTable.innerHTML = ''; // Clear previous data
+
+    if (data && data.length > 0) {
+        const headers = Object.keys(data[0]);
+        const headerRow = document.createElement('tr');
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.innerText = header;
+            headerRow.appendChild(th);
+        });
+        dataTable.appendChild(headerRow);
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            headers.forEach(header => {
+                const td = document.createElement('td');
+                td.innerText = row[header];
+                tr.appendChild(td);
+            });
+            dataTable.appendChild(tr);
+        });
+    } else {
+        const noDataRow = document.createElement('tr');
+        const noDataCell = document.createElement('td');
+        noDataCell.colSpan = 2;
+        noDataCell.innerText = 'No data available';
+        noDataRow.appendChild(noDataCell);
+        dataTable.appendChild(noDataRow);
+    }
 }
-);
