@@ -1,40 +1,60 @@
-const k = 3; // Number of times the email can be repeated
+const k = 3;
 
-function doPost(e) {
+function doGet(e) {
+  var response;
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
-
-    // Check if the email already exists in the sheet more than k times
-    var email = data.email;
-    var emailCount = 0;
-    var values = sheet.getDataRange().getValues();
-    values.forEach(function(row) {
-      if (row[0] === email) {
-        emailCount++;
-      }
-    });
-    
-    if (emailCount >= k) {
-      return ContentService.createTextOutput('Error: Email already exists');
-    }
-
-    sheet.appendRow([data.email, data.question]);
-    return ContentService.createTextOutput('Success');
-  }
-  catch (e) {
-    return ContentService.createTextOutput('Error: ' + e);
-  }
-}
-
-function doGet() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const values = sheet.getDataRange().getValues();
-    const data = values.map(row => {
-        return {
-            email: row[0],
-            question: row[1]
+    
+    // Get parameters from URL
+    var email = e.parameter.email; 
+    var question = e.parameter.question;
+
+    if (!email || !question) {
+      const values = sheet.getDataRange().getValues();
+      const data = values.map(row => {
+          return {
+              email: row[0],
+              question: row[1]
+          };
+      });
+
+      response = {
+        status: 'success',
+        message: data.length ? 'Data found!' : 'No records!',
+        data: data.slice(1)
+      }
+    } else {
+      var values = sheet.getDataRange().getValues();
+      var emailCount = 0;
+      values.forEach(function(row) {
+        if (row[0] === email) {
+          emailCount++;
+        }
+      });
+      
+      if (emailCount >= k) {
+        response = {
+          status: 'error',
+          message: `Email ID has already requested made ${k} requests`
+        };  
+      } else {
+        // Append data to the sheet
+        sheet.appendRow([email, question]);
+        response = {
+          status: 'success',
+          message: 'Data appended successfully.'
         };
-    });
-    return ContentService.createTextOutput(JSON.stringify(data));
+      }
+    }
+  } catch (error) {
+    response = {
+      status: 'error',
+      message: 'An error occurred: ' + error.message
+    };
+  }
+
+  // Return the response as JSON
+  return ContentService
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON)
 }
